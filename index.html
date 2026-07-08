@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cosmos - Lectura Astrológica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400..900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="stars-bg"></div>
+  
+  <main class="app-container">
+    <header class="app-header">
+      <h1>Cosmos</h1>
+      <p>Descifra el mapa de tu destino a través de la Sabiduría Antigua</p>
+    </header>
+
+    <div class="glass-panel" id="onboarding-panel">
+      <h2 id="onboarding-title">Ingresa tus datos de nacimiento</h2>
+      <form id="astrology-form">
+        <div id="birth-datetime-container">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="birthDate">Fecha de Nacimiento</label>
+              <input type="date" id="birthDate" required>
+            </div>
+            
+            <div class="form-group">
+              <label for="birthTime">Hora Exacta</label>
+              <input type="time" id="birthTime" required>
+            </div>
+          </div>
+        </div>
+
+        <div id="horary-note" class="helper-text hidden" style="margin-bottom: 1.5rem; color: var(--primary-color); border: 1px solid rgba(212, 175, 55, 0.2); padding: 0.8rem; border-radius: 8px; background: rgba(212, 175, 55, 0.05);">
+          <strong>Modo Horario Activo:</strong> Se levantará una carta para el instante exacto en que envíes tu pregunta. No necesitas tus datos de nacimiento, solo tu ubicación actual.
+        </div>
+        
+        <div class="form-group">
+          <label for="birthPlace" id="place-label">Lugar de Nacimiento</label>
+          <input type="text" id="birthPlace" placeholder="Ej: Santiago, Chile" required>
+        </div>
+
+        <div class="form-group">
+          <label for="astrologySystem">Sistema Astrológico a Consultar</label>
+          <select id="astrologySystem" required>
+            <option value="hellenistic">Tradicional / Helenística (Secta, Profecciones)</option>
+            <option value="vedic">Védica - Jyotiṣa (Vargas, Daśās)</option>
+            <option value="horary">Astrología Horaria (Respuestas Concretas)</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="specificQuestion" id="question-label">Pregunta Específica (Opcional)</label>
+          <textarea id="specificQuestion" placeholder="Ej: ¿Qué me depara el destino en mi carrera profesional este año?" rows="3"></textarea>
+          <small class="helper-text" id="question-helper">Enfocaremos la lectura en responder a tu duda vital basándonos en tu carta.</small>
+        </div>
+
+        <details class="api-settings">
+          <summary>Configurar API Key de Gemini (Opcional)</summary>
+          <div class="form-group" style="margin-top: 1rem; margin-bottom: 0.5rem;">
+            <label for="geminiApiKey">Clave de API de Gemini</label>
+            <input type="password" id="geminiApiKey" placeholder="Introduce tu API Key de Gemini">
+            <small class="helper-text">Guardada localmente en tu navegador. Si se deja vacía, se intentará usar la variable de entorno.</small>
+          </div>
+        </details>
+
+        <button type="submit" class="glow-button">Generar Lectura Astrológica</button>
+      </form>
+    </div>
+
+    <div class="glass-panel hidden" id="results-panel">
+      <div class="loader-container" id="loader">
+        <div class="spinner"></div>
+        <p class="loader-text" id="loader-msg">Alineando los astros y consultando el oráculo...</p>
+      </div>
+      
+      <div id="reading-content" class="hidden">
+        <div class="chart-summary">
+          <h2 id="reading-title">Tu Lectura</h2>
+          <div class="chart-flex">
+            <canvas id="chart-canvas" width="280" height="280"></canvas>
+            <div class="chart-data" id="chart-data">
+              <!-- Data will be populated here -->
+            </div>
+          </div>
+        </div>
+        <div class="interpretation">
+          <h3>Interpretación del Oráculo</h3>
+          <div id="ai-interpretation" class="ai-text"></div>
+        </div>
+        <div class="action-buttons">
+          <button id="btn-copy" class="outline-button mt-4">Copiar la respuesta</button>
+          <button id="btn-back" class="outline-button mt-4">Consultar de nuevo</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

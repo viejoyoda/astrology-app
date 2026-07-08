@@ -1,0 +1,364 @@
+:root {
+  --primary-color: #d4af37; /* Gold */
+  --primary-glow: rgba(212, 175, 55, 0.5);
+  --bg-color: #050510;
+  --panel-bg: rgba(20, 20, 40, 0.6);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --text-primary: #f0f0f5;
+  --text-secondary: #a0a0b0;
+  --font-title: 'Cinzel', serif;
+  --font-body: 'Inter', sans-serif;
+  --transition-speed: 0.3s;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow-x: hidden;
+  position: relative;
+}
+
+/* Cosmic Background */
+.stars-bg {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-image: 
+    radial-gradient(1px 1px at 10% 20%, #fff 100%, transparent),
+    radial-gradient(1px 1px at 40% 50%, #fff 100%, transparent),
+    radial-gradient(2px 2px at 70% 30%, #fff 100%, transparent),
+    radial-gradient(1px 1px at 90% 80%, #fff 100%, transparent),
+    radial-gradient(1.5px 1.5px at 20% 90%, #fff 100%, transparent),
+    radial-gradient(1px 1px at 50% 10%, #fff 100%, transparent);
+  background-size: 200px 200px;
+  opacity: 0.6;
+  z-index: -1;
+  animation: moveStars 100s linear infinite;
+}
+
+@keyframes moveStars {
+  from { background-position: 0 0; }
+  to { background-position: -1000px 1000px; }
+}
+
+.app-container {
+  width: 100%;
+  max-width: 600px;
+  padding: 2rem;
+  z-index: 1;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 2.5rem;
+}
+
+.app-header h1 {
+  font-family: var(--font-title);
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-shadow: 0 0 20px var(--primary-glow);
+  letter-spacing: 2px;
+  margin-bottom: 0.5rem;
+}
+
+.app-header p {
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  font-weight: 300;
+}
+
+.glass-panel {
+  background: var(--panel-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--panel-border);
+  border-radius: 20px;
+  padding: 2.5rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+  transition: all var(--transition-speed) ease;
+}
+
+.glass-panel h2 {
+  font-family: var(--font-title);
+  font-size: 1.8rem;
+  margin-bottom: 1.5rem;
+  text-align: center;
+  color: #fff;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 1rem;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.2);
+}
+
+.helper-text {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.glow-button {
+  width: 100%;
+  padding: 1rem;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #b8860b, #d4af37);
+  color: #111;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px var(--primary-glow);
+}
+
+.glow-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 25px var(--primary-glow);
+  background: linear-gradient(135deg, #d4af37, #f3e5ab);
+}
+
+.outline-button {
+  width: 100%;
+  padding: 0.8rem;
+  background: transparent;
+  color: var(--text-primary);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.outline-button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--text-secondary);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.mt-4 {
+  margin-top: 1.5rem;
+}
+
+/* Loader */
+.loader-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 0;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(212, 175, 55, 0.2);
+  border-radius: 50%;
+  border-top-color: var(--primary-color);
+  animation: spin 1s ease-in-out infinite;
+  margin-bottom: 1.5rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loader-text {
+  color: var(--primary-color);
+  font-family: var(--font-title);
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+/* Results */
+.chart-summary {
+  margin-bottom: 2rem;
+}
+
+.chart-data {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 1.5rem;
+  border-radius: 12px;
+  border: 1px solid var(--panel-border);
+}
+
+.data-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.data-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.data-value {
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  color: var(--primary-color);
+}
+
+.interpretation h3 {
+  font-family: var(--font-title);
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #fff;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 0.5rem;
+}
+
+.ai-text {
+  line-height: 1.7;
+  color: var(--text-primary);
+  font-size: 1.05rem;
+}
+
+.ai-text p {
+  margin-bottom: 1rem;
+}
+
+.ai-text strong {
+  color: var(--primary-color);
+}
+
+@media (max-width: 600px) {
+  .app-container {
+    padding: 1rem;
+  }
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  .chart-data {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* API Settings Details */
+.api-settings {
+  margin-top: 1.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px dashed var(--panel-border);
+  text-align: left;
+}
+
+.api-settings summary {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.3s;
+}
+
+.api-settings summary:hover {
+  color: var(--primary-color);
+}
+
+.api-settings[open] {
+  padding-bottom: 0.5rem;
+}
+
+/* Astrological Chart Canvas & Flex */
+.chart-flex {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+#chart-canvas {
+  background: radial-gradient(circle, rgba(20, 20, 45, 0.6) 0%, rgba(5, 5, 15, 0.8) 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 25px rgba(212, 175, 55, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 100%;
+  flex-shrink: 0;
+}
+
+@media (max-width: 600px) {
+  .chart-flex {
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+}
+
+
