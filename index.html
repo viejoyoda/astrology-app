@@ -39,8 +39,30 @@
         <div id="horary-note" class="helper-text hidden" style="margin-bottom: 1.5rem; color: var(--primary-color); border: 1px solid rgba(212, 175, 55, 0.2); padding: 0.8rem; border-radius: 8px; background: rgba(212, 175, 55, 0.05);">
           <strong>Modo Horario Activo:</strong> Se levantará una carta para el instante exacto en que envíes tu pregunta. No necesitas tus datos de nacimiento, solo tu ubicación actual.
         </div>
+
+        <div id="daily-note" class="helper-text hidden" style="margin-bottom: 1.5rem; color: var(--primary-color); border: 1px solid rgba(212, 175, 55, 0.2); padding: 0.8rem; border-radius: 8px; background: rgba(212, 175, 55, 0.05);">
+          <strong>Horóscopo Diario Activo:</strong> Analizaremos los tránsitos planetarios reales de hoy en el cielo e interpretaremos su influencia para tu signo solar o ascendente.
+        </div>
         
-        <div class="form-group">
+        <div id="zodiac-selection-container" class="form-group hidden">
+          <label for="zodiacSign">Tu Signo del Zodiaco (Solar o Ascendente)</label>
+          <select id="zodiacSign">
+            <option value="Aries">Aries ♈</option>
+            <option value="Tauro">Tauro ♉</option>
+            <option value="Geminis">Géminis ♊</option>
+            <option value="Cancer">Cáncer ♋</option>
+            <option value="Leo">Leo ♌</option>
+            <option value="Virgo">Virgo ♍</option>
+            <option value="Libra">Libra ♎</option>
+            <option value="Escorpio">Escorpio ♏</option>
+            <option value="Sagitario">Sagitario ♐</option>
+            <option value="Capricornio">Capricornio ♑</option>
+            <option value="Acuario">Acuario ♒</option>
+            <option value="Piscis">Piscis ♓</option>
+          </select>
+        </div>
+        
+        <div class="form-group" id="birthplace-container">
           <label for="birthPlace" id="place-label">Lugar de Nacimiento</label>
           <input type="text" id="birthPlace" placeholder="Ej: Santiago, Chile" required>
         </div>
@@ -51,10 +73,11 @@
             <option value="hellenistic">Tradicional / Helenística (Secta, Profecciones)</option>
             <option value="vedic">Védica - Jyotiṣa (Vargas, Daśās)</option>
             <option value="horary">Astrología Horaria (Respuestas Concretas)</option>
+            <option value="daily">Horóscopo Diario de Tránsitos</option>
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" id="question-container">
           <label for="specificQuestion" id="question-label">Pregunta Específica (Opcional)</label>
           <textarea id="specificQuestion" placeholder="Ej: ¿Qué me depara el destino en mi carrera profesional este año?" rows="3"></textarea>
           <small class="helper-text" id="question-helper">Enfocaremos la lectura en responder a tu duda vital basándonos en tu carta.</small>
