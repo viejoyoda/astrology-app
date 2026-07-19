@@ -352,7 +352,7 @@ function calculateRealAstrology(dateStr, timeStr, lat, lon, offset, system, ques
     const siderealSun = (sunLon - ayanamsha + 360) % 360;
     const siderealMoon = (moonLon - ayanamsha + 360) % 360;
     const siderealMars = (marsLon - ayanamsha + 360) % 360;
-    const siderealMercury = (mercurioLon - ayanamsha + 360) % 360;
+    const siderealMercury = (mercuryLon - ayanamsha + 360) % 360;
     const siderealJupiter = (jupiterLon - ayanamsha + 360) % 360;
     const siderealVenus = (venusLon - ayanamsha + 360) % 360;
     const siderealSaturn = (saturnLon - ayanamsha + 360) % 360;
