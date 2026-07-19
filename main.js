@@ -103,11 +103,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const localKey = localStorage.getItem('COSMOS_GEMINI_API_KEY');
     const envKey = import.meta.env.VITE_GEMINI_API_KEY;
     const activeKey = localKey || envKey;
-
-    if (!activeKey) {
-      alert('No se detectó ninguna API Key de Gemini. Por favor, configúrala en el formulario o en el archivo .env.');
-      return;
-    }
     
     // Get user input
     const system = systemSelect.value;
@@ -124,51 +119,79 @@ document.addEventListener('DOMContentLoaded', () => {
     loader.classList.remove('hidden');
     readingContent.classList.add('hidden');
 
-    try {
-      let lat = -33.4489;
-      let lon = -70.6693;
-      let offset = -4; // Santiago fallback
+    let lat = -33.4489;
+    let lon = -70.6693;
+    let offset = -4; // Santiago fallback
+    let isOfflineMode = !activeKey;
 
+    try {
       if (system === 'daily') {
         const now = new Date();
         requestDate = now.toISOString().split('T')[0];
         requestTime = now.toTimeString().split(' ')[0].substring(0, 5);
-      } else if (system === 'horary') {
-        const now = new Date();
-        requestDate = now.toISOString().split('T')[0];
-        requestTime = now.toTimeString().split(' ')[0].substring(0, 5);
-        
-        // Geocode coordinates for horary place
-        const coords = await getCoordinatesAndOffset(birthPlace, requestDate, activeKey);
-        lat = coords.lat;
-        lon = coords.lon;
-        offset = coords.offset;
       } else {
-        // Geocode coordinates for birth place
-        const coords = await getCoordinatesAndOffset(birthPlace, requestDate, activeKey);
-        lat = coords.lat;
-        lon = coords.lon;
-        offset = coords.offset;
+        const now = new Date();
+        if (system === 'horary') {
+          requestDate = now.toISOString().split('T')[0];
+          requestTime = now.toTimeString().split(' ')[0].substring(0, 5);
+        }
+        
+        // Only attempt geocoding if we have a key
+        if (activeKey) {
+          try {
+            const coords = await getCoordinatesAndOffset(birthPlace, requestDate, activeKey);
+            lat = coords.lat;
+            lon = coords.lon;
+            offset = coords.offset;
+          } catch (geocodeErr) {
+            console.warn("Geocoding failed, using fallback coordinates:", geocodeErr);
+            isOfflineMode = true;
+          }
+        } else {
+          isOfflineMode = true;
+        }
       }
 
-      // Step 1: Real Astronomical Calculation
+      // Step 1: Real Astronomical Calculation (Calculated locally)
       const calculatedChart = calculateRealAstrology(requestDate, requestTime, lat, lon, offset, system, questionText, zodiacSign);
       
       // Render calculated data
       renderChartData(calculatedChart, system);
 
-      // Step 2: Request Interpretation from Gemini AI
-      const interpretation = await getAIInterpretation(calculatedChart, system, questionText);
+      // Step 2: Request Interpretation
+      let interpretation = "";
+      if (activeKey && !isOfflineMode) {
+        try {
+          interpretation = await getAIInterpretation(calculatedChart, system, questionText);
+        } catch (aiError) {
+          console.warn("Gemini API call failed, falling back to local interpretation:", aiError);
+          isOfflineMode = true;
+          interpretation = generateOfflineInterpretation(calculatedChart, system, questionText);
+        }
+      } else {
+        isOfflineMode = true;
+        interpretation = generateOfflineInterpretation(calculatedChart, system, questionText);
+      }
       
       // Render interpretation
-      aiInterpretationContainer.innerHTML = formatMarkdownToHTML(interpretation);
+      let htmlOutput = formatMarkdownToHTML(interpretation);
+      if (isOfflineMode) {
+        htmlOutput = `
+          <div style="background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.2); padding: 0.8rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; text-align: left;">
+            <span style="color: var(--primary-color);">✨</span>
+            <span><strong>Modo Local Activo:</strong> Interpretación técnica generada localmente sin requerir conexión con Gemini.</span>
+          </div>
+          ${htmlOutput}
+        `;
+      }
+      aiInterpretationContainer.innerHTML = htmlOutput;
 
       // Hide loader and show content
       loader.classList.add('hidden');
       readingContent.classList.remove('hidden');
     } catch (error) {
       console.error(error);
-      alert('Hubo un error al conectar con el oráculo. Por favor, verifica tu API KEY de Gemini o intenta de nuevo.\n\nDetalle: ' + error.message);
+      alert('Hubo un error al procesar tu carta: ' + error.message);
       loader.classList.add('hidden');
       onboardingPanel.classList.remove('hidden');
       resultsPanel.classList.add('hidden');
@@ -717,3 +740,102 @@ function drawPlanetGlyph(ctx, cx, cy, r, angle, label, color) {
   
   ctx.fillText(label, tx, ty);
 }
+
+// GENERACIÓN DE INTERPRETACIÓN LOCAL (FALLBACK SIN GEMINI)
+function generateOfflineInterpretation(chart, system, question) {
+  let text = "";
+  
+  if (system === 'daily') {
+    text = `## Horóscopo Diario de Tránsitos para **${chart.signoConsultante}**\n\n`;
+    text += `*Fecha de Tránsitos: ${chart.fechaTránsitos}*\n\n`;
+    text += `Hoy los astros se alinean sobre tu signo con influencias específicas en tus casas astrológicas. Aquí tienes el análisis técnico de las energías en juego:\n\n`;
+    
+    for (const [planet, position] of Object.entries(chart)) {
+      if (['tipo', 'signoConsultante', 'fechaTránsitos'].includes(planet)) continue;
+      const parts = position.split(' ');
+      const signName = parts[0];
+      const houseText = position.match(/Casa \d+/);
+      const house = houseText ? houseText[0] : "Casa 1";
+      
+      text += `### ${planet} en ${signName} (${house})\n`;
+      if (planet === 'Sol') {
+        text += `El Sol ilumina tu **${house}**, aportando vitalidad, enfoque y claridad de propósito en esta área de tu vida hoy. Es un momento propicio para tomar la iniciativa.\n\n`;
+      } else if (planet === 'Luna') {
+        text += `La Luna en tu **${house}** influye en tus emociones, fluctuaciones de ánimo y necesidades subconscientes. Presta atención a tu intuición hoy.\n\n`;
+      } else if (planet === 'Mercurio') {
+        text += `Mercurio en tu **${house}** estimula los procesos mentales, la comunicación, los mensajes y las transacciones hoy. Excelente día para conversaciones y firmas.\n\n`;
+      } else if (planet === 'Venus') {
+        text += `Venus en tu **${house}** derrama armonía, atracción, placer y favorece los afectos y las finanzas personales en esta área.\n\n`;
+      } else if (planet === 'Marte') {
+        text += `Marte en tu **${house}** inyecta energía, pasión e impulso, pero también advierte de posibles conflictos o impaciencia. Canaliza esta fuerza de forma constructiva.\n\n`;
+      } else if (planet === 'Júpiter') {
+        text += `Júpiter en tu **${house}** trae oportunidades de expansión, sabiduría, crecimiento espiritual y buena fortuna en esta área hoy.\n\n`;
+      } else if (planet === 'Saturno') {
+        text += `Saturno en tu **${house}** estructurará tus responsabilidades, imponiendo disciplina, límites o lecciones necesarias en esta esfera.\n\n`;
+      } else {
+        text += `Este planeta transita por tu **${house}**, aportando sutiles impulsos de cambio a nivel colectivo y subconsciente.\n\n`;
+      }
+    }
+    
+    text += `> [!NOTE]\n`;
+    text += `> *Interpretación Local calculada dinámicamente mediante las efemérides astronómicas del día.*`;
+  } 
+  else if (system === 'horary') {
+    text = `## Dictamen de Astrología Horaria\n\n`;
+    text += `### Pregunta: *"${chart.pregunta}"*\n\n`;
+    text += `**1. Consideraciones de Radicalidad (William Lilly):**\n`;
+    text += `${chart.consideracionesLilly}\n\n`;
+    
+    text += `**2. Los Significadores del Juicio:**\n`;
+    text += `- **Consultante (Tú):** Representado por el Ascendente en **${chart.ascendente.split(' ')[0]}** y su regente **${chart.regenteCasa1}**.\n`;
+    text += `- **Asunto/Tema:** Corresponde a la **${chart.casaPregunta}** y su regente **${chart.regentePregunta}**.\n`;
+    text += `- **La Luna:** Actúa como co-significadora del asunto y de tus emociones, situada hoy en **${chart.posicionLuna}**.\n\n`;
+    
+    text += `**3. Análisis de Aspectos y Desenlace:**\n`;
+    text += `El aspecto aplicativo entre tu regente (${chart.regenteCasa1}) y el regente del asunto (${chart.regentePregunta.split(' en ')[0]}) es: **${chart.aspectoRegentes}**.\n\n`;
+    
+    const aspect = chart.aspectoRegentes;
+    if (aspect.includes('Sin aspecto')) {
+      text += `### Veredicto: NO (o con severos impedimentos)\n\n`;
+      text += `Dado que no se perfecciona ningún aspecto aplicativo entre los principales significadores, el cosmos sugiere que el asunto consultado carece del impulso o la conexión necesaria para materializarse en este momento. Las circunstancias fluyen en direcciones opuestas.`;
+    } else if (aspect.includes('Conjunción') || aspect.includes('Trígono') || aspect.includes('Sextil')) {
+      text += `### Veredicto: SÍ (Favorable)\n\n`;
+      text += `¡El augurio es propicio! El aspecto armónico (${aspect}) perfecciona una conexión directa y benéfica entre tú y el asunto. Las energías se facilitan para que logres tu propósito de manera fluida y exitosa en el plazo previsto.`;
+    } else if (aspect.includes('Cuadratura')) {
+      text += `### Veredicto: SÍ, pero con obstáculos y gran esfuerzo\n\n`;
+      text += `El veredicto final es afirmativo, pero la Cuadratura indica tensiones severas y bloqueos que requerirán un esfuerzo monumental de tu parte. Habrá demoras y tendrás que negociar con dificultades antes de ver el desenlace positivo.`;
+    } else if (aspect.includes('Oposición')) {
+      text += `### Veredicto: NO (o separación conflictiva)\n\n`;
+      text += `Aunque hay una conexión entre los significadores (Oposición), ésta representa fuerzas en conflicto que tiran en direcciones opuestas. Si el asunto llega a consumarse, traerá arrepentimiento, pérdidas o una ruptura posterior. El oráculo aconseja cautela.`;
+    }
+    
+    text += `\n\n> [!TIP]\n`;
+    text += `> *Para un veredicto horario, el aspecto entre regentes es la llave del desenlace.*`;
+  }
+  else {
+    const isVedic = system === 'vedic';
+    text = `## Carta Astrológica ${isVedic ? 'Védica Sideral (Jyotiṣa)' : 'Tradicional Helenística'}\n\n`;
+    text += `### Posiciones Calculadas:\n`;
+    text += `- **Ascendente:** ${chart.ascendente}\n`;
+    if (isVedic) {
+      text += `- **Luna (Chandra):** ${chart.luna} (Nakshatra: ${chart.nakshatra})\n`;
+      text += `- **Sol (Surya):** ${chart.sol}\n`;
+      text += `- **Dasha Señor Activo:** ${chart.dashaSeñor}\n`;
+      text += `- **Distribución Planetaria:** ${chart.planetas}\n\n`;
+      text += `### Interpretación de la Carta Sideral:\n`;
+      text += `Tu Ascendente védico en **${chart.ascendente}** define tu temperamento físico e inclinaciones vitales primarias. El transcurso de tu vida está regido actualmente por el ciclo mayor (**${chart.dashaSeñor} Mahadasha**), lo cual activa las promesas natales asociadas a este planeta en tu carta sideral.\n\n`;
+      text += `El Nakshatra de tu Luna (**${chart.nakshatra}**) gobierna tu mente y tu bienestar emocional, confiriéndote sus cualidades arquetípicas védicas tradicionales.`;
+    } else {
+      text += `- **Secta:** Carta ${chart.secta}\n`;
+      text += `- **Señor del Año:** ${chart.señorDelAño}\n`;
+      text += `- **Luna:** ${chart.luna}\n`;
+      text += `- **Sol:** ${chart.sol}\n`;
+      text += `- **Distribución Planetaria:** ${chart.planetas}\n\n`;
+      text += `### Interpretación de la Carta Helenística:\n`;
+      text += `Tu carta es de **Secta ${chart.secta}**, lo cual define al Sol (diurna) o a la Luna (nocturna) como tu lumbrera principal de salud y vitalidad. Tu año actual de vida está regido por **${chart.señorDelAño}**, el cual actúa como el Cronocreador (Señor del Tiempo) de este período, activando sus temáticas natales de forma prioritaria en tu destino actual.`;
+    }
+  }
+  
+  return text;
+}
+
