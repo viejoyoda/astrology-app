@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { MakeTime, EclipticLongitude, SiderealTime, Body } from 'astronomy-engine';
+import { MakeTime, EclipticLongitude, SiderealTime, Body, SunPosition } from 'astronomy-engine';
 
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -278,11 +278,19 @@ async function getCoordinatesAndOffset(place, dateStr, key) {
 }
 
 function calculateRealAstrology(dateStr, timeStr, lat, lon, offset, system, questionText = '', zodiacSign = '') {
-  const localDate = new Date(`${dateStr}T${timeStr}:00`);
+  const dateParts = dateStr.split('-');
+  const timeParts = timeStr.split(':');
+  const y = parseInt(dateParts[0], 10);
+  const m = parseInt(dateParts[1], 10) - 1;
+  const d = parseInt(dateParts[2], 10);
+  const hr = parseInt(timeParts[0], 10);
+  const min = parseInt(timeParts[1], 10);
+
+  const localDate = new Date(y, m, d, hr, min, 0);
   const utcDate = new Date(localDate.getTime() - (offset * 60 * 60 * 1000));
   const time = MakeTime(utcDate);
 
-  const sunLon = EclipticLongitude(Body.Sun, time);
+  const sunLon = SunPosition(time).elon;
   const moonLon = EclipticLongitude(Body.Moon, time);
   const mercuryLon = EclipticLongitude(Body.Mercury, time);
   const venusLon = EclipticLongitude(Body.Venus, time);
