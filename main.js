@@ -237,6 +237,22 @@ const SIGNS = [
   { name: "Piscis", ruler: "Júpiter" }
 ];
 
+// DICCIONARIO DE CASAS ASTROLÓGICAS EN LENGUAJE COTIDIANO
+const HOUSE_METADATA = {
+  1: { area: "Vitalidad e Identidad", focus: "tu energía personal, presencia y nuevos comienzos" },
+  2: { area: "Dinero y Finanzas", focus: "tus ingresos, gastos, posesiones y estabilidad material" },
+  3: { area: "Comunicación y Mente", focus: "conversaciones, mensajes, traslados cortos y gestiones" },
+  4: { area: "Hogar y Familia", focus: "vida doméstica, raíces emocionales, intimidad y hogar" },
+  5: { area: "Romance y Creatividad", focus: "amor, pasión, diversión, proyectos personales y disfrute" },
+  6: { area: "Trabajo Diario y Salud", focus: "rutina laboral, tareas pendientes, hábitos y bienestar" },
+  7: { area: "Pareja y Vínculos", focus: "relaciones de pareja, acuerdos, socios y el trato cercano" },
+  8: { area: "Transformación y Finanzas Compartidas", focus: "acuerdos íntimos, deudas, dinero conjunto y soltar el pasado" },
+  9: { area: "Expansión y Perspectiva", focus: "estudios, viajes, visión de futuro y perspectiva mental" },
+  10: { area: "Profesión y Éxito", focus: "carrera profesional, reputación pública y metas importantes" },
+  11: { area: "Amistades y Metas Futuras", focus: "trabajo en equipo, redes de apoyo y anhelos a futuro" },
+  12: { area: "Introspección y Descanso", focus: "mundo interior, intuición, espiritualidad y recarga de energía" }
+};
+
 // Generador de números pseudo-aleatorios basado en una semilla
 function getZodiacSign(longitude) {
   const norm = (longitude % 360 + 360) % 360;
@@ -336,16 +352,28 @@ function calculateRealAstrology(dateStr, timeStr, lat, lon, offset, system, ques
 
     const userSignIndex = SIGNS.findIndex(s => s.name === userSignName);
     const transitsInHouses = {};
+    const housePlacements = [];
+
     for (const [pName, pData] of Object.entries(planets)) {
       const houseNum = ((pData.index - userSignIndex + 12) % 12) + 1;
-      transitsInHouses[pName] = `${pData.sign} ${pData.degrees}° (Casa ${houseNum})`;
+      const meta = HOUSE_METADATA[houseNum];
+      transitsInHouses[pName] = `${pData.sign} ${pData.degrees}° (Casa ${houseNum}: ${meta.area})`;
+      housePlacements.push({
+        planet: pName,
+        sign: pData.sign,
+        degrees: pData.degrees,
+        house: houseNum,
+        area: meta.area,
+        focus: meta.focus
+      });
     }
 
     return {
       tipo: "Horóscopo Diario de Tránsitos",
       signoConsultante: userSignName,
       fechaTránsitos: dateStr,
-      ...transitsInHouses
+      ...transitsInHouses,
+      _housePlacements: housePlacements
     };
   } else if (system === 'vedic') {
     const siderealAsc = (ascDeg - ayanamsha + 360) % 360;
@@ -410,23 +438,32 @@ function calculateRealAstrology(dateStr, timeStr, lat, lon, offset, system, ques
       planetas: `Mercurio (${getZodiacSign(mercuryLon).sign}), Venus (${getZodiacSign(venusLon).sign}), Marte (${getZodiacSign(marsLon).sign}), Júpiter (${getZodiacSign(jupiterLon).sign}), Saturno (${getZodiacSign(saturnLon).sign})`
     };
   } else {
-    // Horary
+    // Horary - Basado fielmente en William Lilly (Christian Astrology)
     const asc = getZodiacSign(ascDeg);
     const moon = getZodiacSign(moonLon);
 
     const q = questionText.toLowerCase();
     let targetHouseNumber = 7; 
-    let targetHouseLabel = "Casa 7 (Pareja / Relación)";
+    let targetHouseLabel = "Casa 7 (Pareja / Vínculos / El Otro)";
 
-    if (q.includes('trabajo') || q.includes('carrera') || q.includes('empleo') || q.includes('profesion') || q.includes('puesto') || q.includes('negocio') || q.includes('jefe')) {
+    if (q.includes('trabajo') || q.includes('carrera') || q.includes('empleo') || q.includes('profesion') || q.includes('puesto') || q.includes('negocio') || q.includes('jefe') || q.includes('ascenso')) {
       targetHouseNumber = 10;
-      targetHouseLabel = "Casa 10 (Carrera / Éxito)";
-    } else if (q.includes('dinero') || q.includes('financ') || q.includes('comprar') || q.includes('vender') || q.includes('pago') || q.includes('inversion')) {
+      targetHouseLabel = "Casa 10 (Profesión / Éxito / Carrera)";
+    } else if (q.includes('dinero') || q.includes('financ') || q.includes('comprar') || q.includes('vender') || q.includes('pago') || q.includes('inversion') || q.includes('sueldo')) {
       targetHouseNumber = 2;
-      targetHouseLabel = "Casa 2 (Dinero / Recursos)";
-    } else if (q.includes('deseo') || q.includes('esperanza') || q.includes('meta') || q.includes('amigo') || q.includes('desear')) {
+      targetHouseLabel = "Casa 2 (Dinero / Recursos / Posesiones)";
+    } else if (q.includes('deseo') || q.includes('esperanza') || q.includes('meta') || q.includes('amigo') || q.includes('amiga') || q.includes('desear')) {
       targetHouseNumber = 11;
-      targetHouseLabel = "Casa 11 (Deseos / Amigos)";
+      targetHouseLabel = "Casa 11 (Deseos / Amistades / Proyectos)";
+    } else if (q.includes('viaje') || q.includes('estudio') || q.includes('extranjero') || q.includes('visa')) {
+      targetHouseNumber = 9;
+      targetHouseLabel = "Casa 9 (Viajes Largos / Estudios / Extranjero)";
+    } else if (q.includes('casa') || q.includes('hogar') || q.includes('familia') || q.includes('mudanza')) {
+      targetHouseNumber = 4;
+      targetHouseLabel = "Casa 4 (Hogar / Familia / Bienes Raíces)";
+    } else if (q.includes('salud') || q.includes('enfermedad') || q.includes('medico')) {
+      targetHouseNumber = 6;
+      targetHouseLabel = "Casa 6 (Salud / Rutina / Esfuerzo)";
     }
 
     const targetSignIndex = (asc.index + (targetHouseNumber - 1)) % 12;
@@ -441,40 +478,124 @@ function calculateRealAstrology(dateStr, timeStr, lat, lon, offset, system, ques
     const degRuler1 = planetPositions[rulerCasa1] || sunLon;
     const degRuler2 = planetPositions[rulerPregunta] || venusLon;
 
-    const diff = Math.abs(degRuler1 - degRuler2) % 180;
-    let aspect = "Sin aspecto aplicativo (-)";
-    if (diff < 6 || diff > 174) {
-      aspect = "Conjunción/Oposición aplicativa";
-    } else if (Math.abs(diff - 60) < 6) {
-      aspect = "Sextil aplicativo (+)";
-    } else if (Math.abs(diff - 90) < 6) {
-      aspect = "Cuadratura aplicativa (Dificultades)";
-    } else if (Math.abs(diff - 120) < 6) {
-      aspect = "Trígono aplicativo (+)";
+    // Helper para evaluar aspectos con orbes tradicionales
+    function getAspectInfo(degA, degB, maxOrb = 8) {
+      let diff = Math.abs(degA - degB) % 360;
+      if (diff > 180) diff = 360 - diff;
+      
+      if (diff <= maxOrb) return { type: "Conjunción", nature: "+", quality: "unión directa y máxima fusión de energías", diff: diff.toFixed(1) };
+      if (Math.abs(diff - 60) <= maxOrb) return { type: "Sextil", nature: "+", quality: "oportunidades favorables y cooperación fluida", diff: Math.abs(diff - 60).toFixed(1) };
+      if (Math.abs(diff - 90) <= maxOrb) return { type: "Cuadratura", nature: "-", quality: "obstáculos, demoras y esfuerzo considerable", diff: Math.abs(diff - 90).toFixed(1) };
+      if (Math.abs(diff - 120) <= maxOrb) return { type: "Trígono", nature: "+", quality: "gran armonía, facilitación y éxito natural", diff: Math.abs(diff - 120).toFixed(1) };
+      if (Math.abs(diff - 180) <= maxOrb) return { type: "Oposición", nature: "-", quality: "fuerzas contrarias, polaridad o distanciamiento", diff: Math.abs(diff - 180).toFixed(1) };
+      return null;
     }
 
-    let consideration = "Ninguna (Carta Radical)";
+    // 1. Aspecto directo entre regente 1 y regente 2
+    const directAspect = getAspectInfo(degRuler1, degRuler2, 8);
+
+    // 2. Aspecto de la Luna al regente del asunto (regla fundamental de Lilly: la Luna concreta el juicio)
+    const moonAspect = getAspectInfo(moonLon, degRuler2, 10);
+
+    // 3. Relación por signos enteros (Whole Sign familiarity)
+    const signRuler1 = getZodiacSign(degRuler1);
+    const signRuler2 = getZodiacSign(degRuler2);
+    const signDist = (signRuler2.index - signRuler1.index + 12) % 12;
+
+    let signHarmonious = false;
+    let signTense = false;
+    let signRelationText = "en aversión (sin conexión directa por signos)";
+
+    if (signDist === 0) { signRelationText = "en el mismo signo (co-presencia)"; signHarmonious = true; }
+    else if (signDist === 4 || signDist === 8) { signRelationText = "en signos de Trígono (afinidad elemental fluida)"; signHarmonious = true; }
+    else if (signDist === 2 || signDist === 10) { signRelationText = "en signos de Sextil (afinidad amistosa)"; signHarmonious = true; }
+    else if (signDist === 3 || signDist === 9) { signRelationText = "en signos de Cuadratura (tensión elemental)"; signTense = true; }
+    else if (signDist === 6) { signRelationText = "en signos Opuestos (polaridad)"; signTense = true; }
+
+    // 4. Recepción mutua o unilateral (buena voluntad entre planetas)
+    const r1InR2Sign = signRuler1.ruler === rulerPregunta;
+    const r2InR1Sign = signRuler2.ruler === rulerCasa1;
+    const hasReception = r1InR2Sign || r2InR1Sign;
+
+    let aspect = "";
+    let veredictoBadge = "";
+    let veredictoTipo = "";
+    let explicacionCorta = "";
+
+    if (directAspect) {
+      if (directAspect.nature === '+') {
+        aspect = `${directAspect.type} aplicativo directo (+) - ${directAspect.quality}`;
+        veredictoBadge = "SÍ — Favorable y Directo";
+        veredictoTipo = "SI_DIRECTO";
+        explicacionCorta = `Existe un aspecto directo y benéfico (${directAspect.type}) entre tu regente (${rulerCasa1}) y el regente del asunto (${rulerPregunta}), facilitando un desenlace exitoso.`;
+      } else if (directAspect.type === 'Cuadratura') {
+        aspect = `Cuadratura aplicativa directa (-) - ${directAspect.quality}`;
+        veredictoBadge = "SÍ, PERO CON OBSTÁCULOS Y ESFUERZO";
+        veredictoTipo = "SI_CON_OBSTACULOS";
+        explicacionCorta = `Hay conexión directa pero a través de una Cuadratura. El asunto se resolverá positivamente solo si estás dispuesto a negociar dificultades, demoras y fricciones.`;
+      } else {
+        aspect = `Oposición aplicativa directa (-) - ${directAspect.quality}`;
+        veredictoBadge = "NO — Fuerzas en Conflicto o Ruptura";
+        veredictoTipo = "NO_OPOSICION";
+        explicacionCorta = `La Oposición directa indica intereses encontrados o separación. Si el asunto llega a concretarse, traerá arrepentimiento o tensiones posteriores.`;
+      }
+    } else if (moonAspect && moonAspect.nature === '+') {
+      aspect = `Perfección por la Luna: ${moonAspect.type} aplicativo a ${rulerPregunta} (+)`;
+      veredictoBadge = "SÍ — Concretado a través de la Luna";
+      veredictoTipo = "SI_LUNAR";
+      explicacionCorta = `Aunque tus regentes principales no forman un ángulo exacto, la Luna (tu co-significadora) aplica en ${moonAspect.type} armónico a ${rulerPregunta}, asegurando la resolución favorable del asunto.`;
+    } else if (moonAspect && moonAspect.type === 'Cuadratura') {
+      aspect = `Luna en Cuadratura a ${rulerPregunta} (-) - Avance con demoras`;
+      veredictoBadge = "SÍ, PERO CON TENSIONES EMOCIONALES";
+      veredictoTipo = "SI_CON_OBSTACULOS";
+      explicacionCorta = `La Luna conecta con el asunto mediante Cuadratura, prometiendo un desenlace posible pero acompañado de desgaste anímico y negociaciones difíciles.`;
+    } else if (hasReception) {
+      aspect = `Recepción favorable entre regentes (${signRelationText}) (+)`;
+      veredictoBadge = "SÍ — Facilitado por Buena Voluntad Mutua";
+      veredictoTipo = "SI_INDIRECTO";
+      explicacionCorta = `Existe recepción entre los planetas (uno acoge al otro en su signo). Esto indica disposición, afinidad y simpatía mutua para sacar el asunto adelante.`;
+    } else if (signHarmonious) {
+      aspect = `Testimonio armónico por signos (${signRelationText}) (+)`;
+      veredictoBadge = "FAVORABLE — Progreso Gradual a Medio Plazo";
+      veredictoTipo = "FAVORABLE_GRADUAL";
+      explicacionCorta = `Ambos regentes habitan signos en sintonía elemental, lo que permite que el asunto prospere de forma natural en las próximas semanas.`;
+    } else if (signTense) {
+      aspect = `Testimonio tenso por signos (${signRelationText}) (-)`;
+      veredictoBadge = "DIFÍCIL — Bloqueos o Desencuentro Actual";
+      veredictoTipo = "DIFICIL";
+      explicacionCorta = `Los signos de ambos planetas no congenian en este momento, lo que refleja desacuerdos, frialdad o falta de sincronización para avanzar.`;
+    } else {
+      aspect = `Sin aspecto aplicativo ni conexión lunar (${signRelationText}) (-)`;
+      veredictoBadge = "NO — Falta de Impulso o Conexión en este Momento";
+      veredictoTipo = "NO_INCONEXION";
+      explicacionCorta = `Los significadores están en aversión y la Luna no traslada luz al asunto. Las circunstancias actuales no ofrecen el puente necesario para materializarlo.`;
+    }
+
+    let consideration = "Ninguna (Carta Radical y Confiable)";
     if (asc.degrees < 3) {
-      consideration = `Ascendente muy temprano (${asc.degrees}° ${asc.sign}). El asunto es prematuro.`;
+      consideration = `Ascendente muy temprano (${asc.degrees}° ${asc.sign}). El asunto es prematuro o aún está gestándose; las cosas pueden cambiar.`;
     } else if (asc.degrees > 27) {
-      consideration = `Ascendente muy tardío (${asc.degrees}° ${asc.sign}). El asunto está fuera de alcance.`;
+      consideration = `Ascendente muy tardío (${asc.degrees}° ${asc.sign}). El asunto ya está en sus etapas finales o escapa a tu control.`;
     } else if (
       (moon.sign === "Libra" && moon.degrees >= 15) || 
       (moon.sign === "Escorpio" && moon.degrees <= 15)
     ) {
-      consideration = `Luna en Vía Combusta (${moon.degrees}° ${moon.sign}). El asunto está lleno de temores.`;
+      consideration = `Luna en Vía Combusta (${moon.degrees}° ${moon.sign}). Hay ansiedad o temores infundados que nublan la situación objetiva.`;
     }
 
     return {
-      tipo: "Astrología Horaria Real",
+      tipo: "Astrología Horaria Tradicional",
       pregunta: questionText,
-      ascendente: `${asc.sign} ${asc.degrees}°`,
+      veredicto: veredictoBadge,
+      ascendente: `${asc.sign} ${asc.degrees}° (Consultante)`,
       regenteCasa1: `${rulerCasa1}`,
-      posicionLuna: `${moon.sign} ${moon.degrees}°`,
+      posicionLuna: `${moon.sign} ${moon.degrees}° (Co-significadora)`,
       casaPregunta: targetHouseLabel,
       regentePregunta: `${rulerPregunta} en ${getZodiacSign(degRuler2).sign} ${getZodiacSign(degRuler2).degrees}°`,
       aspectoRegentes: aspect,
-      consideracionesLilly: consideration
+      consideracionesLilly: consideration,
+      _veredictoTipo: veredictoTipo,
+      _explicacionCorta: explicacionCorta
     };
   }
 }
@@ -487,7 +608,7 @@ function renderChartData(data, system) {
   
   container.innerHTML = '';
   for (const [key, value] of Object.entries(data)) {
-    if (key === 'pregunta' || key === 'momento' || key === 'ubicacion') continue;
+    if (key.startsWith('_') || key === 'pregunta' || key === 'momento' || key === 'ubicacion') continue;
     const el = document.createElement('div');
     el.className = 'data-item';
     el.innerHTML = `
@@ -525,18 +646,27 @@ async function getAIInterpretation(chartData, system, specificQuestion) {
     systemPrompt = `Eres un erudito en Astrología Védica (Jyotiṣa). Tu análisis debe enfocarse en el zodíaco Sideral, el cálculo de fuerzas Shadbala, las cartas divisionales como la Navamsa (D9) y Dasamsa (D10), y predecir usando el Vimshottari Dasha. Sugiere Upāyas (remedios) al final.`;
     userPrompt = `Aquí tienes los cálculos matemáticos de mi carta sideral: ${JSON.stringify(chartData)}. `;
   } else if (system === 'daily') {
-    systemPrompt = `Eres un experto astrólogo tradicional. Tu tarea es generar un horóscopo diario de tránsitos personalizado, dinámico y técnicamente riguroso.
-    No uses clichés genéricos. En su lugar, explica en qué casa de la carta del consultante (basado en su signo solar/ascendente) caen los tránsitos planetarios reales de hoy, e interpreta lo que esto significa para su día en áreas como el trabajo, amor, energía y comunicación. Usa una prosa mística pero directa y con base técnica real.`;
+    systemPrompt = `Eres un experto astrólogo tradicional y humanista. Tu misión es generar un horóscopo diario de tránsitos útil, claro, enriquecedor y profundamente conectado con la vida real del consultante.
+    REGLAS OBLIGATORIAS:
+    1. NUNCA menciones un número de casa astrológica de forma aislada sin traducir su significado inmediato a la vida real (ejemplo: si hablas de Casa 10, aclara siempre que es el sector del trabajo, logros y reputación profesional; si hablas de Casa 7, aclara que es la pareja y los acuerdos clave).
+    2. NO hagas una lista robótica e inconexa de los 10 planetas uno detrás de otro con frases repetitivas.
+    3. Organiza tu respuesta en una narrativa cohesiva y fluida con estas secciones:
+       - ✨ **Clima General de tu Día**: el tono vital y emocional marcado por el Sol y la Luna de hoy.
+       - 💼 **Trabajo, Metas y Finanzas**: oportunidades, enfoque mental y gestiones prácticas.
+       - ❤️ **Amor y Vínculos**: sintonía con pareja, amistades o familia.
+       - ⚡ **Energía y Bienestar**: ritmo físico, posibles tensiones o momentos de descanso recomendados.
+       - 🔮 **Consejo del Oráculo**: una síntesis clara, motivadora y accionable para tu jornada.`;
     userPrompt = `Aquí tienes los tránsitos planetarios reales de hoy calculados para el signo ${chartData.signoConsultante}: ${JSON.stringify(chartData)}.`;
   } else {
     systemPrompt = `Eres un experto astrólogo tradicional especializado en Astrología Horaria (siguiendo estrictamente las reglas de William Lilly en 'Christian Astrology' y Guido Bonatti).
-    Tu objetivo es responder de forma directa, honesta y concisa la pregunta del consultante a partir de los datos de la carta horaria levantada.
-
-    Instrucciones específicas:
-    1. Evalúa e informa de las 'Consideraciones previas al juicio' (radicalidad de la carta). Si hay advertencias (como un ascendente muy temprano o tardío), menciónalas con un tono misterioso pero técnico.
-    2. Identifica los significadores: el regente de la Casa 1 y la Luna representan al consultante. Indica qué casa representa al asunto consultado y su regente (el consultado/quesited).
-    3. Determina el resultado analizando la relación entre los regentes (aspectos aplicativos, traslación de luz o impedimentos como combustión y retrogradación).
-    4. Proporciona un veredicto final muy claro al final del análisis (ej: "Sí", "No", "Sí, pero con retrasos y obstáculos").`;
+    Tu objetivo es responder de forma directa, honesta, clara y comprensible la duda del consultante.
+    
+    REGLAS OBLIGATORIAS:
+    1. Inicia con un VEREDICTO CLARO Y DESTACADO en la primera línea (ej: "Veredicto: SÍ", "Veredicto: SÍ, PERO CON DEMORAS Y ESFUERZO", "Veredicto: NO").
+    2. Explica en lenguaje cotidiano quién es quién en el mapa celeste: el consultante (${chartData.regenteCasa1}), el asunto (${chartData.regentePregunta}) y la Luna.
+    3. Detalla qué significa la conexión astrológica encontrada (aspecto directo o testimonio lunar) y qué desenlace predice en la realidad.
+    4. Explica cualquier consideración de radicalidad si aplica.
+    5. Cierra con un Consejo Práctico concreto para el consultante sobre los pasos a seguir.`;
     userPrompt = `Aquí tienes los datos calculados para la consulta de astrología horaria: ${JSON.stringify(chartData)}.
     La pregunta específica es: "${specificQuestion}".`;
   }
@@ -676,7 +806,8 @@ function drawAstrologyWheel(data, system) {
         ctx.shadowColor = '#ff3366';
       }
       ctx.beginPath();
-      ctx.moveTo(cx + r * 0.6 * Math.cos(angleH1), cy + r * 0.6 * Math.sin(angleH1));
+      const originAngle = aspect.includes('Luna') ? angleMoon : angleH1;
+      ctx.moveTo(cx + r * 0.6 * Math.cos(originAngle), cy + r * 0.6 * Math.sin(originAngle));
       ctx.lineTo(cx + r * 0.6 * Math.cos(anglePregunta), cy + r * 0.6 * Math.sin(anglePregunta));
       ctx.stroke();
       ctx.shadowBlur = 0;
@@ -695,7 +826,7 @@ function drawAstrologyWheel(data, system) {
 
     let i = 0;
     for (const [pName, pValue] of Object.entries(data)) {
-      if (['tipo', 'signoConsultante', 'fechaTránsitos'].includes(pName)) continue;
+      if (['tipo', 'signoConsultante', 'fechaTránsitos'].includes(pName) || pName.startsWith('_')) continue;
       const signName = pValue.split(' ')[0];
       const planetSignIndex = SIGNS.findIndex(s => s.name === signName);
       if (planetSignIndex === -1) continue;
@@ -749,76 +880,120 @@ function drawPlanetGlyph(ctx, cx, cy, r, angle, label, color) {
   ctx.fillText(label, tx, ty);
 }
 
-// GENERACIÓN DE INTERPRETACIÓN LOCAL (FALLBACK SIN GEMINI)
+// GENERACIÓN DE INTERPRETACIÓN LOCAL (NARRATIVA CLARA, HUMANA Y RIGUROSA)
 function generateOfflineInterpretation(chart, system, question) {
   let text = "";
   
   if (system === 'daily') {
+    const placements = chart._housePlacements || [];
+    const sunInfo = placements.find(p => p.planet === 'Sol');
+    const moonInfo = placements.find(p => p.planet === 'Luna');
+    const mercuryInfo = placements.find(p => p.planet === 'Mercurio');
+    const venusInfo = placements.find(p => p.planet === 'Venus');
+    const marsInfo = placements.find(p => p.planet === 'Marte');
+    const jupiterInfo = placements.find(p => p.planet === 'Júpiter');
+    const saturnInfo = placements.find(p => p.planet === 'Saturno');
+
     text = `## Horóscopo Diario de Tránsitos para **${chart.signoConsultante}**\n\n`;
-    text += `*Fecha de Tránsitos: ${chart.fechaTránsitos}*\n\n`;
-    text += `Hoy los astros se alinean sobre tu signo con influencias específicas en tus casas astrológicas. Aquí tienes el análisis técnico de las energías en juego:\n\n`;
-    
-    for (const [planet, position] of Object.entries(chart)) {
-      if (['tipo', 'signoConsultante', 'fechaTránsitos'].includes(planet)) continue;
-      const parts = position.split(' ');
-      const signName = parts[0];
-      const houseText = position.match(/Casa \d+/);
-      const house = houseText ? houseText[0] : "Casa 1";
-      
-      text += `### ${planet} en ${signName} (${house})\n`;
-      if (planet === 'Sol') {
-        text += `El Sol ilumina tu **${house}**, aportando vitalidad, enfoque y claridad de propósito en esta área de tu vida hoy. Es un momento propicio para tomar la iniciativa.\n\n`;
-      } else if (planet === 'Luna') {
-        text += `La Luna en tu **${house}** influye en tus emociones, fluctuaciones de ánimo y necesidades subconscientes. Presta atención a tu intuición hoy.\n\n`;
-      } else if (planet === 'Mercurio') {
-        text += `Mercurio en tu **${house}** estimula los procesos mentales, la comunicación, los mensajes y las transacciones hoy. Excelente día para conversaciones y firmas.\n\n`;
-      } else if (planet === 'Venus') {
-        text += `Venus en tu **${house}** derrama armonía, atracción, placer y favorece los afectos y las finanzas personales en esta área.\n\n`;
-      } else if (planet === 'Marte') {
-        text += `Marte en tu **${house}** inyecta energía, pasión e impulso, pero también advierte de posibles conflictos o impaciencia. Canaliza esta fuerza de forma constructiva.\n\n`;
-      } else if (planet === 'Júpiter') {
-        text += `Júpiter en tu **${house}** trae oportunidades de expansión, sabiduría, crecimiento espiritual y buena fortuna en esta área hoy.\n\n`;
-      } else if (planet === 'Saturno') {
-        text += `Saturno en tu **${house}** estructurará tus responsabilidades, imponiendo disciplina, límites o lecciones necesarias en esta esfera.\n\n`;
-      } else {
-        text += `Este planeta transita por tu **${house}**, aportando sutiles impulsos de cambio a nivel colectivo y subconsciente.\n\n`;
-      }
+    text += `*Cielo astronómico de hoy: ${chart.fechaTránsitos}*\n\n`;
+
+    // 1. Clima General
+    text += `### ✨ El Clima General de tu Día\n`;
+    if (sunInfo && moonInfo) {
+      text += `Hoy tu energía vital está iluminada por el **Sol en ${sunInfo.sign}**, transitando por tu **Casa ${sunInfo.house} (${sunInfo.area})**. Esto significa que tu mayor foco consciente y brillo personal se concentrará en ${sunInfo.focus}.\n\n`;
+      text += `Por su parte, el pulso emocional lo marca la **Luna en ${moonInfo.sign}** a través de tu **Casa ${moonInfo.house} (${moonInfo.area})**, influyendo directamente en ${moonInfo.focus}. La combinación de ambos astros te invita a alinear lo que sientes con lo que deseas construir hoy.\n\n`;
     }
-    
-    text += `> [!NOTE]\n`;
-    text += `> *Interpretación Local calculada dinámicamente mediante las efemérides astronómicas del día.*`;
+
+    // 2. Trabajo, Dinero y Proyectos
+    text += `### 💼 Trabajo, Dinero y Proyectos\n`;
+    let workText = "";
+    if (mercuryInfo) {
+      workText += `En el plano mental y de comunicaciones, **Mercurio en ${mercuryInfo.sign}** activa tu **Casa ${mercuryInfo.house} (${mercuryInfo.area})**, dinamizando ${mercuryInfo.focus}. Es un momento propicio para ordenar ideas, responder mensajes clave o negociar acuerdos. `;
+    }
+    if (saturnInfo) {
+      workText += `A la vez, la presencia de **Saturno en ${saturnInfo.sign}** en tu **Casa ${saturnInfo.house} (${saturnInfo.area})** te pide disciplina, paciencia y estructurar bien tus compromisos laborales. Evita atajos; la constancia será tu mayor aliada. `;
+    }
+    if (jupiterInfo) {
+      workText += `**Júpiter en ${jupiterInfo.sign}** abre puertas en tu **Casa ${jupiterInfo.house} (${jupiterInfo.area})**, aportándote optimismo y oportunidades de crecimiento en ${jupiterInfo.focus}.`;
+    }
+    text += workText ? workText + "\n\n" : `Las energías laborales y financieras fluyen con estabilidad; enfócate en tus prioridades sin dispersarte.\n\n`;
+
+    // 3. Amor, Relaciones y Vínculos
+    text += `### ❤️ Amor y Relaciones\n`;
+    let loveText = "";
+    if (venusInfo) {
+      loveText += `El planeta de los afectos y la armonía, **Venus en ${venusInfo.sign}**, transita tu **Casa ${venusInfo.house} (${venusInfo.area})**. Su influencia aporta simpatía, magnetismo y deseo de compartir en ${venusInfo.focus}. Si tienes pareja o deseas acercarte a alguien, este tránsito facilita el entendimiento y el cariño. `;
+    }
+    if (marsInfo) {
+      loveText += `Por otro lado, **Marte en ${marsInfo.sign}** recorre tu **Casa ${marsInfo.house} (${marsInfo.area})**, lo que inyecta pasión e iniciativa, pero también te advierte contra la impaciencia o los roces innecesarios.`;
+    }
+    text += loveText ? loveText + "\n\n" : `El clima vincular te invita a escuchar con empatía y cuidar los detalles en tus interacciones más cercanas.\n\n`;
+
+    // 4. Energía, Ánimo y Bienestar
+    text += `### ⚡ Energía, Ánimo y Bienestar\n`;
+    if (marsInfo && moonInfo) {
+      text += `Tu nivel de vitalidad física depende hoy del equilibrio entre la iniciativa activa de Marte (${marsInfo.area}) y la sensibilidad de la Luna (${moonInfo.area}). Si notas tensión acumulada, regálate pausas conscientes para respirar y recuperar tu centro.\n\n`;
+    } else {
+      text += `Cuida tu ritmo vital y dale a tu cuerpo espacio para recargarse a lo largo del día.\n\n`;
+    }
+
+    // 5. Consejo del Oráculo
+    text += `### 🔮 Consejo del Oráculo para Hoy\n`;
+    text += `Aprovecha el foco del Sol en tu sector de **${sunInfo ? sunInfo.area : 'energía personal'}** para avanzar con paso firme en lo que verdaderamente te importa, pero escuchando con madurez lo que tu intuición te señala a través de la Luna. La clave de tu jornada no es correr, sino actuar con certeza e intención clara.\n\n`;
+
+    // 6. Guía didáctica de las Casas activadas
+    text += `---\n\n`;
+    text += `#### 📖 Diccionario de Casas Activadas Hoy en tu Carta:\n`;
+    text += `*(Para que comprendas qué significa en tu vida cada sector astrológico activado)*\n\n`;
+    if (placements.length > 0) {
+      placements.forEach(p => {
+        text += `- **Casa ${p.house} (${p.area}):** Ocupada hoy por **${p.planet} en ${p.sign}**. *Influye en: ${p.focus}.*\n`;
+      });
+    }
+    text += `\n> [!NOTE]\n`;
+    text += `> *Horóscopo generado a partir de las coordenadas astronómicas y efemérides geocéntricas exactas de hoy.*`;
   } 
   else if (system === 'horary') {
-    text = `## Dictamen de Astrología Horaria\n\n`;
-    text += `### Pregunta: *"${chart.pregunta}"*\n\n`;
-    text += `**1. Consideraciones de Radicalidad (William Lilly):**\n`;
-    text += `${chart.consideracionesLilly}\n\n`;
+    text = `## Dictamen de Astrología Horaria Tradicional\n\n`;
+    text += `> ### 🔮 Veredicto del Oráculo: **${chart.veredicto || 'RESOLUCIÓN DETERMINADA'}**\n\n`;
+    text += `### Pregunta Formulada: *"${chart.pregunta}"*\n\n`;
     
-    text += `**2. Los Significadores del Juicio:**\n`;
-    text += `- **Consultante (Tú):** Representado por el Ascendente en **${chart.ascendente.split(' ')[0]}** y su regente **${chart.regenteCasa1}**.\n`;
-    text += `- **Asunto/Tema:** Corresponde a la **${chart.casaPregunta}** y su regente **${chart.regentePregunta}**.\n`;
-    text += `- **La Luna:** Actúa como co-significadora del asunto y de tus emociones, situada hoy en **${chart.posicionLuna}**.\n\n`;
+    text += `### 1. Quién es Quién en el Cielo (Los Actores de tu Consulta)\n`;
+    text += `- **Tú (Consultante):** Estás representado por la **Casa 1** y tu planeta regente **${chart.regenteCasa1}** (con el Ascendente en ${chart.ascendente.split(' ')[0]}).\n`;
+    text += `- **El Asunto Consultado:** Corresponde a la **${chart.casaPregunta}**, gobernada por su regente **${chart.regentePregunta}**.\n`;
+    text += `- **La Luna (El Motor de los Acontecimientos):** Actúa como tu co-significadora y marca cómo fluye el destino, situada hoy en **${chart.posicionLuna}**.\n\n`;
     
-    text += `**3. Análisis de Aspectos y Desenlace:**\n`;
-    text += `El aspecto aplicativo entre tu regente (${chart.regenteCasa1}) y el regente del asunto (${chart.regentePregunta.split(' en ')[0]}) es: **${chart.aspectoRegentes}**.\n\n`;
-    
-    const aspect = chart.aspectoRegentes;
-    if (aspect.includes('Sin aspecto')) {
-      text += `### Veredicto: NO (o con severos impedimentos)\n\n`;
-      text += `Dado que no se perfecciona ningún aspecto aplicativo entre los principales significadores, el cosmos sugiere que el asunto consultado carece del impulso o la conexión necesaria para materializarse en este momento. Las circunstancias fluyen en direcciones opuestas.`;
-    } else if (aspect.includes('Conjunción') || aspect.includes('Trígono') || aspect.includes('Sextil')) {
-      text += `### Veredicto: SÍ (Favorable)\n\n`;
-      text += `¡El augurio es propicio! El aspecto armónico (${aspect}) perfecciona una conexión directa y benéfica entre tú y el asunto. Las energías se facilitan para que logres tu propósito de manera fluida y exitosa en el plazo previsto.`;
-    } else if (aspect.includes('Cuadratura')) {
-      text += `### Veredicto: SÍ, pero con obstáculos y gran esfuerzo\n\n`;
-      text += `El veredicto final es afirmativo, pero la Cuadratura indica tensiones severas y bloqueos que requerirán un esfuerzo monumental de tu parte. Habrá demoras y tendrás que negociar con dificultades antes de ver el desenlace positivo.`;
-    } else if (aspect.includes('Oposición')) {
-      text += `### Veredicto: NO (o separación conflictiva)\n\n`;
-      text += `Aunque hay una conexión entre los significadores (Oposición), ésta representa fuerzas en conflicto que tiran en direcciones opuestas. Si el asunto llega a consumarse, traerá arrepentimiento, pérdidas o una ruptura posterior. El oráculo aconseja cautela.`;
+    text += `### 2. El Dictamen Astrológico\n`;
+    text += `${chart._explicacionCorta || 'Se ha analizado la configuración geométrica y las dignidades celestes para tu pregunta.'}\n\n`;
+    text += `* **Aspecto / Conexión:** *${chart.aspectoRegentes}*.\n\n`;
+
+    const vTipo = chart._veredictoTipo || "";
+    if (vTipo === 'SI_DIRECTO' || vTipo === 'SI_LUNAR') {
+      text += `El cielo abre un canal directo y armónico. Los significadores se buscan y se encuentran favorablemente en el firmamento, lo que augura que tus deseos o intenciones respecto a esta pregunta tienen el viento a favor para materializarse con fluidez.\n\n`;
+    } else if (vTipo === 'SI_CON_OBSTACULOS') {
+      text += `La respuesta promete ser positiva, pero no vendrá de manera gratuita ni inmediata. Hay tensiones que demandarán paciencia, madurez emocional y resolver trabas previas antes de ver la recompensa.\n\n`;
+    } else if (vTipo === 'SI_INDIRECTO' || vTipo === 'FAVORABLE_GRADUAL') {
+      text += `Hay buena voluntad, simpatía y afinidad de fondo, aunque los tiempos terrenales requieren paciencia. No fuerces los acontecimientos de golpe; el asunto madurará a tu favor si mantienes la templanza.\n\n`;
+    } else if (vTipo === 'NO_OPOSICION') {
+      text += `Las partes o circunstancias involucradas tiran en direcciones contrarias. Una oposición tradicional advierte que insistir tercamente en este camino podría generar arrepentimiento, desgaste o distanciamiento.\n\n`;
+    } else {
+      text += `En este preciso momento, no existe el puente energético necesario en el cielo para que el asunto se resuelva en el sentido que esperas. Las circunstancias no están maduras o las voluntades marchan por senderos desconectados.\n\n`;
     }
-    
+
+    text += `### 3. Consideraciones Previas de Radicalidad (William Lilly)\n`;
+    text += `${chart.consideracionesLilly}\n\n`;
+
+    text += `### 4. Consejo Práctico del Oráculo\n`;
+    if (vTipo.startsWith('SI')) {
+      text += `Da los pasos necesarios con confianza y honestidad. Las energías respaldan tu iniciativa, pero mantén la atención en los acuerdos mutuos y no des nada por sentado hasta que se concrete en el plano real.`;
+    } else if (vTipo === 'FAVORABLE_GRADUAL') {
+      text += `Siembra con calma y no te precipites pidiendo respuestas inmediatas. Dale tiempo al otro o a las circunstancias para que tomen su curso natural.`;
+    } else {
+      text += `No desgastes tu energía intentando empujar una puerta que hoy está trabada. Enfócate en tu propia paz mental, en tus proyectos personales y deja que el tiempo aclare las verdaderas intenciones del entorno.`;
+    }
+
     text += `\n\n> [!TIP]\n`;
-    text += `> *Para un veredicto horario, el aspecto entre regentes es la llave del desenlace.*`;
+    text += `> *En la astrología horaria clásica, la carta es una fotografía viva del instante en que la pregunta se volvió urgente. Si la situación cambia sustancialmente en el futuro, se podrá consultar un nuevo ciclo.*`;
   }
   else {
     const isVedic = system === 'vedic';
@@ -846,4 +1021,5 @@ function generateOfflineInterpretation(chart, system, question) {
   
   return text;
 }
+
 
