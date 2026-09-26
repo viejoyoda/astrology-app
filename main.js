@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import { MakeTime, EclipticLongitude, SiderealTime, Body, SunPosition } from 'astronomy-engine';
 
 
@@ -101,7 +100,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const localKey = localStorage.getItem('COSMOS_GEMINI_API_KEY');
-    const envKey = import.meta.env.VITE_GEMINI_API_KEY;
+    const envKey = import.meta.env?.VITE_GEMINI_API_KEY;
     const activeKey = localKey || envKey;
     
     // Get user input
@@ -121,8 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let lat = -33.4489;
     let lon = -70.6693;
-    let offset = -4; // Santiago fallback
-    let isOfflineMode = !activeKey;
+    let offset = -3; // Santiago standard fallback
+    let usedAI = false;
 
     try {
       if (system === 'daily') {
@@ -136,19 +135,19 @@ document.addEventListener('DOMContentLoaded', () => {
           requestTime = now.toTimeString().split(' ')[0].substring(0, 5);
         }
         
-        // Only attempt geocoding if we have a key
-        if (activeKey) {
+        // Geocode coordinates if place is provided and key is active
+        if (activeKey && birthPlace.trim()) {
           try {
             const coords = await getCoordinatesAndOffset(birthPlace, requestDate, activeKey);
             lat = coords.lat;
             lon = coords.lon;
             offset = coords.offset;
           } catch (geocodeErr) {
-            console.warn("Geocoding failed, using fallback coordinates:", geocodeErr);
-            isOfflineMode = true;
+            console.warn("Geocoding failed, using Santiago fallback coordinates:", geocodeErr);
+            lat = -33.4489;
+            lon = -70.6693;
+            offset = -3;
           }
-        } else {
-          isOfflineMode = true;
         }
       }
 
@@ -158,28 +157,35 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render calculated data
       renderChartData(calculatedChart, system);
 
-      // Step 2: Request Interpretation
+      // Step 2: Request Interpretation (Priority to Gemini AI)
       let interpretation = "";
-      if (activeKey && !isOfflineMode) {
+      if (activeKey) {
         try {
-          interpretation = await getAIInterpretation(calculatedChart, system, questionText);
+          interpretation = await getAIInterpretation(calculatedChart, system, questionText, activeKey);
+          usedAI = true;
         } catch (aiError) {
           console.warn("Gemini API call failed, falling back to local interpretation:", aiError);
-          isOfflineMode = true;
           interpretation = generateOfflineInterpretation(calculatedChart, system, questionText);
         }
       } else {
-        isOfflineMode = true;
         interpretation = generateOfflineInterpretation(calculatedChart, system, questionText);
       }
       
       // Render interpretation
       let htmlOutput = formatMarkdownToHTML(interpretation);
-      if (isOfflineMode) {
+      if (usedAI) {
         htmlOutput = `
-          <div style="background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.2); padding: 0.8rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; text-align: left;">
+          <div style="background: rgba(0, 255, 200, 0.08); border: 1px solid rgba(0, 255, 200, 0.3); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.6rem; font-size: 0.9rem; text-align: left;">
+            <span style="color: #00ffc8; font-size: 1.1rem;">✨</span>
+            <span><strong>Lectura Inteligente con Gemini AI (Gemini 2.5 Flash):</strong> Razonamiento semántico y astronómico en vivo.</span>
+          </div>
+          ${htmlOutput}
+        `;
+      } else {
+        htmlOutput = `
+          <div style="background: rgba(212,175,55,0.06); border: 1px solid rgba(212,175,55,0.2); padding: 0.8rem 1rem; border-radius: 8px; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; text-align: left;">
             <span style="color: var(--primary-color);">✨</span>
-            <span><strong>Modo Local Activo:</strong> Interpretación técnica generada localmente sin requerir conexión con Gemini.</span>
+            <span><strong>Modo Local Activo:</strong> Interpretación técnica generada localmente sin conexión a Gemini.</span>
           </div>
           ${htmlOutput}
         `;
@@ -268,28 +274,36 @@ function getZodiacSign(longitude) {
 
 async function getCoordinatesAndOffset(place, dateStr, key) {
   try {
-    if (!place) {
-      return { lat: -33.4489, lon: -70.6693, offset: -4 };
+    if (!place || !place.trim()) {
+      return { lat: -33.4489, lon: -70.6693, offset: -3 };
     }
-    const ai = new GoogleGenAI({ apiKey: key });
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [
-        { role: 'user', parts: [{ text: `Dada la ubicación "${place}" y la fecha "${dateStr}", responde únicamente en formato JSON con la latitud (número decimal), longitud (número decimal) y la diferencia horaria UTC (diferencia en horas con respecto a UTC, ej: -4 o +2). Formato del JSON exacto sin markdown ni explicaciones:
-{"lat": -33.4489, "lon": -70.6693, "offset": -4}` }] }
-      ]
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: `Dada la ubicación "${place}" y la fecha "${dateStr}", responde únicamente en formato JSON con la latitud (número decimal), longitud (número decimal) y la diferencia horaria UTC (diferencia en horas con respecto a UTC, ej: -3 o +2). Formato exacto sin bloques markdown ni explicaciones:
+{"lat": -33.4489, "lon": -70.6693, "offset": -3}` }]
+          }
+        ]
+      })
     });
-    const text = response.text.trim();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '{}';
     const cleanedJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
     const result = JSON.parse(cleanedJson);
     return {
-      lat: Number(result.lat) || 0,
-      lon: Number(result.lon) || 0,
-      offset: Number(result.offset) || 0
+      lat: Number(result.lat) || -33.4489,
+      lon: Number(result.lon) || -70.6693,
+      offset: Number(result.offset) || -3
     };
   } catch (err) {
-    console.warn("Geocoding failed, falling back to default:", err);
-    return { lat: -33.4489, lon: -70.6693, offset: -4 }; // Default Santiago
+    console.warn("Geocoding failed, falling back to Santiago default:", err);
+    return { lat: -33.4489, lon: -70.6693, offset: -3 }; // Default Santiago
   }
 }
 
@@ -625,16 +639,14 @@ function renderChartData(data, system) {
 }
 
 // INTEGRACIÓN CON GEMINI AI
-async function getAIInterpretation(chartData, system, specificQuestion) {
+async function getAIInterpretation(chartData, system, specificQuestion, keyOverride = null) {
   const localKey = localStorage.getItem('COSMOS_GEMINI_API_KEY');
-  const envKey = import.meta.env.VITE_GEMINI_API_KEY;
-  const activeKey = localKey || envKey;
+  const envKey = import.meta.env?.VITE_GEMINI_API_KEY;
+  const activeKey = keyOverride || localKey || envKey;
 
   if (!activeKey) {
     throw new Error('No se detectó ninguna API Key de Gemini. Por favor, configúrala en el formulario o en el archivo .env.');
   }
-
-  const ai = new GoogleGenAI({ apiKey: activeKey });
 
   let systemPrompt = "";
   let userPrompt = "";
@@ -658,30 +670,63 @@ async function getAIInterpretation(chartData, system, specificQuestion) {
        - 🔮 **Consejo del Oráculo**: una síntesis clara, motivadora y accionable para tu jornada.`;
     userPrompt = `Aquí tienes los tránsitos planetarios reales de hoy calculados para el signo ${chartData.signoConsultante}: ${JSON.stringify(chartData)}.`;
   } else {
-    systemPrompt = `Eres un experto astrólogo tradicional especializado en Astrología Horaria (siguiendo estrictamente las reglas de William Lilly en 'Christian Astrology' y Guido Bonatti).
-    Tu objetivo es responder de forma directa, honesta, clara y comprensible la duda del consultante.
-    
-    REGLAS OBLIGATORIAS:
-    1. Inicia con un VEREDICTO CLARO Y DESTACADO en la primera línea (ej: "Veredicto: SÍ", "Veredicto: SÍ, PERO CON DEMORAS Y ESFUERZO", "Veredicto: NO").
-    2. Explica en lenguaje cotidiano quién es quién en el mapa celeste: el consultante (${chartData.regenteCasa1}), el asunto (${chartData.regentePregunta}) y la Luna.
-    3. Detalla qué significa la conexión astrológica encontrada (aspecto directo o testimonio lunar) y qué desenlace predice en la realidad.
-    4. Explica cualquier consideración de radicalidad si aplica.
-    5. Cierra con un Consejo Práctico concreto para el consultante sobre los pasos a seguir.`;
+    systemPrompt = `Eres un sabio y certero astrólogo tradicional especializado en Astrología Horaria, siguiendo con maestría las reglas clásicas de William Lilly ('Christian Astrology') y Guido Bonatti, con agudo discernimiento semántico y sentido común.
+
+    Tu misión es responder con honestidad, agudeza y sin contradicciones la pregunta específica del consultante a partir de los datos astronómicos reales de la carta horaria levantada.
+
+    DIRECTIVAS DE DISCERNIMIENTO CRÍTICO:
+    1. DISCERNIMIENTO SEMÁNTICO Y DERIVACIÓN DE CASAS:
+       - Si la pregunta es sobre el estado civil o amoroso de la otra persona (ej: "¿Tiene pololo / pareja?"):
+         * NO asumas que pregunta si tiene algo con el consultante. Para ver si ella tiene otra pareja, analiza si el planeta de ella (${chartData.regentePregunta}) está unido o aplicando a OTRO planeta rival diferente al del consultante (${chartData.regenteCasa1}), o si la Casa 7 está ocupada por un astro extraño. Si su regente no tiene aspectos estrechos con rivales o solo conecta contigo, dictamina que NO tiene otra pareja y está libre.
+       - Si la pregunta es "¿Está soltera / libre?":
+         * Evalúa si su regente está libre de ataduras o aspectos con terceros. ¡Sé coherente y no te contradigas con la pregunta anterior!
+       - Si la pregunta es sobre sus sentimientos hacia el consultante (ej: "¿Me extraña?", "¿Me quiere?", "¿Volveremos?"):
+         * Evalúa la relación directa entre el regente de ella (${chartData.regentePregunta}), el del consultante (${chartData.regenteCasa1}) y la Luna.
+    2. VEREDICTO CONTUNDENTE Y DESTACADO:
+       - Inicia OBLIGATORIAMENTE tu respuesta en la primera línea con un título destacado que responda directamente a lo preguntado.
+       - Ejemplos:
+         * **VEREDICTO: SÍ, TIENE OTRA RELACIÓN** (o **VEREDICTO: NO, NO TIENE POLOLO**)
+         * **VEREDICTO: SÍ, ESTÁ SOLTERA Y DISPONIBLE** (o **VEREDICTO: NO ESTÁ SOLTERA**)
+         * **VEREDICTO: SÍ, TE EXTRAÑA / SIENTE AFECTO POR TI**
+    3. LOS ACTORES EN EL CIELO:
+       - Explica en lenguaje cotidiano quién es quién en el mapa celeste: el consultante (${chartData.regenteCasa1}), la otra persona (${chartData.regentePregunta}) y la Luna como hilo conductor del destino.
+    4. ANÁLISIS DE LA CARTA:
+       - Explica con claridad qué revelan los planetas, las casas y los aspectos astronómicos para justificar tu respuesta.
+    5. CONSEJO PRÁCTICO DEL ORÁCULO:
+       - Entrega una recomendación sabia, sincera y realista para el consultante sobre qué actitud tomar.`;
     userPrompt = `Aquí tienes los datos calculados para la consulta de astrología horaria: ${JSON.stringify(chartData)}.
-    La pregunta específica es: "${specificQuestion}".`;
+    La pregunta específica formulada por el consultante es: "${specificQuestion}".`;
   }
 
   try {
-    const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`;
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         contents: [
-            { role: 'user', parts: [{ text: systemPrompt + "\n\n" + userPrompt }] }
+          {
+            role: 'user',
+            parts: [{ text: systemPrompt + "\n\n" + userPrompt }]
+          }
         ],
-        config: {
-            temperature: 0.7,
+        generationConfig: {
+          temperature: 0.7
         }
+      })
     });
-    return response.text;
+
+    if (!response.ok) {
+      const errorJson = await response.json().catch(() => ({}));
+      throw new Error(errorJson.error?.message || `HTTP ${response.status}`);
+    }
+
+    const data = await response.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error("Respuesta vacía recibida de la API de Gemini.");
+    }
+    return text;
   } catch (err) {
     console.error("Gemini API Error:", err);
     throw err;
